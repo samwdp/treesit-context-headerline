@@ -1,0 +1,35 @@
+* treesit-context-headerline
+
+Show code context in the header line using Emacs Tree-sitter.  
+Displays function/class/conditional context (e.g. if, for, while, etc) in the header line, left-to-right, outermost to innermost.  
+Works with any language supported by Emacs Tree-sitter.
+
+** Installation
+*** Manual
+Clone the repository and add the directory to your load-path, then:
+
+#+begin_src emacs-lisp
+(require 'treesit-context-headerline)
+(treesit-context-headerline-mode 1)
+#+end_src
+
+*** Straight
+#+begin_src emacs-lisp
+  (use-package treesit-context-headerline
+    :straight (treesit-conxet-headerline :host github :repo "samwdp/treesit-context-headerline")
+    :hook (csharp-ts-mode . treesit-context-headerline-mode))
+#+end_src
+
+
+** Usage
+
+Enable the minor mode in any buffer with Tree-sitter enabled:
+
+#+begin_src emacs-lisp
+(treesit-context-headerline-mode 1)
+#+end_src
+
+** Customization
+
+- =treesit-context-headerline-structural-node-types=: List of node types considered as structural (function, class, etc).
+- =treesit-context-headerline-conditional-node-types=: List of node types considered as conditional/control blocks.
