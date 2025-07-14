@@ -30,6 +30,26 @@
   :type 'string
   :group 'treesit-context-headerline)
 
+(defcustom treesit-context-headerline-icons-enabled t
+  "Whether to display icons in the context headerline.
+When enabled, icons will be shown before each node according to its type,
+using the selected icon backend. If the backend is not available,
+no icons will be displayed."
+  :type 'boolean
+  :group 'treesit-context-headerline)
+
+(defcustom treesit-context-headerline-icon-backend 'nerd-icons
+  "Icon backend to use for displaying icons in the headerline.
+Available options:
+- `nerd-icons': Use nerd-icons.el package (default)
+- `all-the-icons': Use all-the-icons.el package
+
+The selected backend must be installed for icons to work.
+If the selected backend is not available, no icons will be displayed."
+  :type '(choice (const :tag "Nerd Icons" nerd-icons)
+                 (const :tag "All The Icons" all-the-icons))
+  :group 'treesit-context-headerline)
+
 (defcustom treesit-context-headerline-structural-node-types
   '("namespace" "namespace_declaration" "class" "class_declaration" "struct"
     "struct_declaration" "interface" "interface_declaration" "enum"
@@ -63,10 +83,138 @@
       (setq node (treesit-node-parent node)))
     (nreverse results))) ;; top-most node first
 
+(defun treesit-context-headerline--backend-available-p (backend)
+  "Check if BACKEND is available.
+BACKEND can be \\='nerd-icons or \\='all-the-icons."
+  (cond
+   ((eq backend 'nerd-icons)
+    (and (featurep 'nerd-icons)
+         (fboundp 'nerd-icons-codicon)))
+   ((eq backend 'all-the-icons)
+    (and (featurep 'all-the-icons)
+         (fboundp 'all-the-icons-octicon)))
+   (t nil)))
+
+(defun treesit-context-headerline--get-icon (node-type backend)
+  "Get icon for NODE-TYPE using BACKEND.
+Returns the icon string or nil if no suitable icon is found."
+  (when (treesit-context-headerline--backend-available-p backend)
+    (let ((icon-map (cond
+                     ((eq backend 'nerd-icons)
+                      '(("function" . "codicon:symbol-method")
+                        ("function_definition" . "codicon:symbol-method")
+                        ("function_declaration" . "codicon:symbol-method")
+                        ("method" . "codicon:symbol-method")
+                        ("method_definition" . "codicon:symbol-method")
+                        ("method_declaration" . "codicon:symbol-method")
+                        ("class" . "codicon:symbol-class")
+                        ("class_declaration" . "codicon:symbol-class")
+                        ("struct" . "codicon:symbol-struct")
+                        ("struct_declaration" . "codicon:symbol-struct")
+                        ("interface" . "codicon:symbol-interface")
+                        ("interface_declaration" . "codicon:symbol-interface")
+                        ("namespace" . "codicon:symbol-namespace")
+                        ("namespace_declaration" . "codicon:symbol-namespace")
+                        ("module" . "codicon:symbol-module")
+                        ("module_declaration" . "codicon:symbol-module")
+                        ("enum" . "codicon:symbol-enum")
+                        ("enum_declaration" . "codicon:symbol-enum")
+                        ("property" . "codicon:symbol-property")
+                        ("property_declaration" . "codicon:symbol-property")
+                        ("variable" . "codicon:symbol-variable")
+                        ("variable_declaration" . "codicon:symbol-variable")
+                        ("if" . "codicon:question")
+                        ("if_statement" . "codicon:question")
+                        ("for" . "codicon:sync")
+                        ("for_statement" . "codicon:sync")
+                        ("foreach" . "codicon:sync")
+                        ("foreach_statement" . "codicon:sync")
+                        ("while" . "codicon:sync")
+                        ("while_statement" . "codicon:sync")
+                        ("switch" . "codicon:list-tree")
+                        ("switch_statement" . "codicon:list-tree")
+                        ("try" . "codicon:shield")
+                        ("try_statement" . "codicon:shield")
+                        ("catch" . "codicon:debug-alt")
+                        ("catch_clause" . "codicon:debug-alt")
+                        ("default" . "codicon:circle-filled")))
+                     ((eq backend 'all-the-icons)
+                      '(("function" . "octicon:zap")
+                        ("function_definition" . "octicon:zap")
+                        ("function_declaration" . "octicon:zap")
+                        ("method" . "octicon:zap")
+                        ("method_definition" . "octicon:zap")
+                        ("method_declaration" . "octicon:zap")
+                        ("class" . "octicon:package")
+                        ("class_declaration" . "octicon:package")
+                        ("struct" . "octicon:database")
+                        ("struct_declaration" . "octicon:database")
+                        ("interface" . "octicon:plug")
+                        ("interface_declaration" . "octicon:plug")
+                        ("namespace" . "octicon:file-directory")
+                        ("namespace_declaration" . "octicon:file-directory")
+                        ("module" . "octicon:file-submodule")
+                        ("module_declaration" . "octicon:file-submodule")
+                        ("enum" . "octicon:list-unordered")
+                        ("enum_declaration" . "octicon:list-unordered")
+                        ("property" . "octicon:gear")
+                        ("property_declaration" . "octicon:gear")
+                        ("variable" . "octicon:primitive-dot")
+                        ("variable_declaration" . "octicon:primitive-dot")
+                        ("if" . "octicon:question")
+                        ("if_statement" . "octicon:question")
+                        ("for" . "octicon:sync")
+                        ("for_statement" . "octicon:sync")
+                        ("foreach" . "octicon:sync")
+                        ("foreach_statement" . "octicon:sync")
+                        ("while" . "octicon:sync")
+                        ("while_statement" . "octicon:sync")
+                        ("switch" . "octicon:list-ordered")
+                        ("switch_statement" . "octicon:list-ordered")
+                        ("try" . "octicon:shield")
+                        ("try_statement" . "octicon:shield")
+                        ("catch" . "octicon:alert")
+                        ("catch_clause" . "octicon:alert")
+                        ("default" . "octicon:dot-fill")))
+                     (t nil))))
+      (when-let ((icon-spec (cdr (assoc node-type icon-map))))
+        (cond
+         ((eq backend 'nerd-icons)
+          (when (string-match "^\\([^:]+\\):\\(.+\\)$" icon-spec)
+            (let ((family (match-string 1 icon-spec))
+                  (name (match-string 2 icon-spec)))
+              (cond
+               ((string= family "codicon") (nerd-icons-codicon name))
+               (t nil)))))
+         ((eq backend 'all-the-icons)
+          (when (string-match "^\\([^:]+\\):\\(.+\\)$" icon-spec)
+            (let ((family (match-string 1 icon-spec))
+                  (name (match-string 2 icon-spec)))
+              (cond
+               ((string= family "octicon") (all-the-icons-octicon name))
+               (t nil)))))
+         (t nil))))))
+
+(defvar treesit-context-headerline--backend-warning-shown nil
+  "Whether a warning about missing backend has been shown in this session.")
+
+(defun treesit-context-headerline--maybe-warn-missing-backend ()
+  "Show a warning if icons are enabled but the selected backend is not available."
+  (when (and treesit-context-headerline-icons-enabled
+             (not treesit-context-headerline--backend-warning-shown)
+             (not (treesit-context-headerline--backend-available-p 
+                   treesit-context-headerline-icon-backend)))
+    (setq treesit-context-headerline--backend-warning-shown t)
+    (display-warning 'treesit-context-headerline
+                     (format "Icon backend '%s' is not available. Install the package or disable icons."
+                             treesit-context-headerline-icon-backend)
+                     :warning)))
+
 (defun treesit-context-headerline--node-label (node)
   "Return a label for NODE for the headerline."
   (let* ((type (treesit-node-type node))
-         (label nil))
+         (label nil)
+         (icon nil))
     (cond
      ;; For conditionals, prettify type
      ((member type treesit-context-headerline-conditional-node-types)
@@ -84,7 +232,15 @@
                 (replace-regexp-in-string
                  "_statement\\|_clause\\|_section\\|_label\\|_declaration\\|_definition" "" type)))))
      (t nil))
-    label))
+    
+    ;; Add icon if enabled and available
+    (when (and label treesit-context-headerline-icons-enabled)
+      (setq icon (treesit-context-headerline--get-icon type treesit-context-headerline-icon-backend)))
+    
+    ;; Combine icon and label
+    (if icon
+        (concat icon " " label)
+      label)))
 
 (defun treesit-context-headerline--format ()
   "Return the context path as a string for the headerline, including all matching block ancestors."
@@ -103,6 +259,7 @@
 
 (defun treesit-context-headerline--update ()
   "Update the header-line with the context path."
+  (treesit-context-headerline--maybe-warn-missing-backend)
   (let ((ctx (treesit-context-headerline--format)))
     (setq header-line-format
           (when (and ctx (not (string-empty-p ctx)))

@@ -33,3 +33,54 @@ Enable the minor mode in any buffer with Tree-sitter enabled:
 
 - =treesit-context-headerline-structural-node-types=: List of node types considered as structural (function, class, etc).
 - =treesit-context-headerline-conditional-node-types=: List of node types considered as conditional/control blocks.
+- =treesit-context-headerline-icons-enabled=: Whether to display icons in the context headerline (default: =t=).
+- =treesit-context-headerline-icon-backend=: Icon backend to use (default: =nerd-icons=).
+
+*** Icon Support
+
+treesit-context-headerline supports displaying icons next to context nodes. Two icon backends are supported:
+
+**** Nerd Icons (default)
+Install [[https://github.com/rainstormstudio/nerd-icons.el][nerd-icons.el]] for icon support:
+
+#+begin_src emacs-lisp
+;; Install nerd-icons if not already installed
+(use-package nerd-icons
+  :ensure t)
+
+;; Enable icons (default)
+(setq treesit-context-headerline-icons-enabled t)
+(setq treesit-context-headerline-icon-backend 'nerd-icons)
+#+end_src
+
+**** All The Icons (alternative)
+Alternatively, use [[https://github.com/domtronn/all-the-icons.el][all-the-icons.el]]:
+
+#+begin_src emacs-lisp
+;; Install all-the-icons if not already installed
+(use-package all-the-icons
+  :ensure t)
+
+;; Configure to use all-the-icons backend
+(setq treesit-context-headerline-icons-enabled t)
+(setq treesit-context-headerline-icon-backend 'all-the-icons)
+#+end_src
+
+**** Disabling Icons
+To disable icons entirely:
+
+#+begin_src emacs-lisp
+(setq treesit-context-headerline-icons-enabled nil)
+#+end_src
+
+*** Icon Mappings
+
+Common node types have appropriate icon mappings:
+- Functions/methods: ⚡ (method symbol)
+- Classes: 📦 (package symbol)  
+- Interfaces: 🔌 (plug symbol)
+- Namespaces/modules: 📁 (folder symbol)
+- Control flow (if/for/while): ❓ (question) or 🔄 (sync)
+- Try/catch blocks: 🛡️ (shield) or ⚠️ (alert)
+
+If the selected backend is not installed, the package will display a warning and fall back to text-only display.
