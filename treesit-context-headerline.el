@@ -210,7 +210,7 @@ Uses only verified icon names to prevent errors."
                      (t nil))))
       ;; Try to get icon for specific node type
       (let ((icon nil))
-        (when-let ((icon-spec (cdr (assoc node-type icon-map))))
+        (when-let* ((icon-spec (cdr (assoc node-type icon-map))))
           (let ((family (car icon-spec))
                 (name (cdr icon-spec)))
             (setq icon (treesit-context-headerline--safe-get-icon-string backend family name))))
@@ -276,7 +276,8 @@ Uses only verified icon names to prevent errors."
          ;; Remove nils (unlabeled nodes)
          (labels (delq nil labels)))
     (if (and labels (> (length labels) 0))
-        (mapconcat #'identity labels treesit-context-headerline-separator)
+        ;; Reverse labels so left is parent, right is child
+        (mapconcat #'identity (reverse labels) treesit-context-headerline-separator)
       "")))
 
 (defun treesit-context-headerline--update ()
