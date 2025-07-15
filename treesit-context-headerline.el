@@ -1,54 +1,25 @@
-;;; treesit-context-headerline.el --- Show syntax context in headerline using Tree-sitter -*- lexical-binding: t; -*-
+;;; treesit-context-headerline.el --- Show code context in header line using Tree-sitter -*- lexical-binding: t; -*-
 
 ;; Author: samwdp
-;; Maintainer: samwdp
-;; Version: 0.1
-;; Package-Requires: ((emacs "29.1"))
-;; Homepage: https://github.com/samwdp/treesit-context-headerline
-;; Keywords: convenience, tools, languages
-;; License: MIT
+;; Version: 0.2
+;; Package-Requires: ((emacs "29.1") (nerd-icons "0.1") (all-the-icons "5.0"))
+;; Keywords: convenience, languages, tools
+;; URL: https://github.com/samwdp/treesit-context-headerline
 
 ;;; Commentary:
 
-;; treesit-context-headerline-mode displays a context path in the header line,
-;; showing the current function, class, and control blocks (such as if, for, foreach, while, etc)
-;; using the Tree-sitter parser. It works with any language supported by Tree-sitter.
-;; The context is displayed left-to-right, outermost to innermost.
+;; Show code context in the header line using Emacs Tree-sitter.
+;; Displays function/class/conditional context in the header line, left-to-right, outermost to innermost.
+;; Works with any language supported by Emacs Tree-sitter.
 
 ;;; Code:
 
-(require 'treesit)
 (require 'cl-lib)
+(require 'treesit)
 
 (defgroup treesit-context-headerline nil
-  "Show code context path in the header line using Tree-sitter."
-  :group 'convenience
-  :prefix "treesit-context-headerline-")
-
-(defcustom treesit-context-headerline-separator " > "
-  "Separator string for context path in the header line."
-  :type 'string
-  :group 'treesit-context-headerline)
-
-(defcustom treesit-context-headerline-icons-enabled t
-  "Whether to display icons in the context headerline.
-When enabled, icons will be shown before each node according to its type,
-using the selected icon backend. If the backend is not available,
-no icons will be displayed."
-  :type 'boolean
-  :group 'treesit-context-headerline)
-
-(defcustom treesit-context-headerline-icon-backend 'nerd-icons
-  "Icon backend to use for displaying icons in the headerline.
-Available options:
-- `nerd-icons': Use nerd-icons.el package (default)
-- `all-the-icons': Use all-the-icons.el package
-
-The selected backend must be installed for icons to work.
-If the selected backend is not available, no icons will be displayed."
-  :type '(choice (const :tag "Nerd Icons" nerd-icons)
-                 (const :tag "All The Icons" all-the-icons))
-  :group 'treesit-context-headerline)
+  "Show Tree-sitter code context in the Emacs header line."
+  :group 'convenience)
 
 (defcustom treesit-context-headerline-structural-node-types
   '("namespace" "namespace_declaration" "class" "class_declaration" "struct"
@@ -74,152 +45,63 @@ If the selected backend is not available, no icons will be displayed."
   :type '(repeat string)
   :group 'treesit-context-headerline)
 
-(defun treesit-context-headerline--get-nodes-at-point ()
-  "Return a list of all ancestor nodes at point, from top to innermost."
-  (let ((node (ignore-errors (treesit-node-at (point))))
-        results)
-    (while node
-      (push node results)
-      (setq node (treesit-node-parent node)))
-    (nreverse results))) ;; top-most node first
+(defcustom treesit-context-headerline-icons-enabled t
+  "Whether to show icons alongside context in the headerline."
+  :type 'boolean
+  :group 'treesit-context-headerline)
 
-(defun treesit-context-headerline--backend-available-p (backend)
-  "Check if BACKEND is available.
-BACKEND can be \\='nerd-icons or \\='all-the-icons."
-  (cond
-   ((eq backend 'nerd-icons)
-    (and (featurep 'nerd-icons)
-         (fboundp 'nerd-icons-codicon)))
-   ((eq backend 'all-the-icons)
-    (and (featurep 'all-the-icons)
-         (fboundp 'all-the-icons-octicon)))
-   (t nil)))
+(defcustom treesit-context-headerline-icon-backend 'nerd-icons
+  "Which icon backend to use. Either 'nerd-icons or 'all-the-icons."
+  :type '(choice (const :tag "Nerd Icons" nerd-icons)
+                 (const :tag "All The Icons" all-the-icons))
+  :group 'treesit-context-headerline)
 
-(defun treesit-context-headerline--safe-get-icon-string (backend family name)
-  "Safely get icon string from BACKEND using FAMILY and NAME.
-Returns icon string on success, nil on failure."
-  (condition-case nil
-      (cond
-       ((and (eq backend 'nerd-icons) (string= family "codicon"))
-        (and (fboundp 'nerd-icons-codicon)
-             (nerd-icons-codicon name)))
-       ((and (eq backend 'all-the-icons) (string= family "octicon"))
-        (and (fboundp 'all-the-icons-octicon)
-             (all-the-icons-octicon name)))
-       (t nil))
-    (error nil)))
+(defcustom treesit-context-headerline-separator ">"
+  "Separator between context nodes in the headerline.
+Can be a string (e.g. \">\"), or a cons cell of (ICON-NAME . ICON-TYPE), e.g.
+  (\"nf-cod-chevron_right\" . nerd-icons)
+or
+  (\"chevron-right\" . all-the-icons)
+If a cons cell, the corresponding icon backend is used to render the icon."
+  :type '(choice string
+                 (cons (string :tag "Icon Name")
+                       (choice (const nerd-icons) (const all-the-icons))))
+  :group 'treesit-context-headerline)
 
-(defun treesit-context-headerline--get-fallback-icon (backend)
-  "Get a safe fallback icon for BACKEND.
-Returns a basic icon that should work or nil if backend unavailable."
-  (condition-case nil
-      (cond
-       ((eq backend 'nerd-icons)
-        (and (fboundp 'nerd-icons-codicon)
-             (nerd-icons-codicon "nf-cod-chevron_right")))
-       ((eq backend 'all-the-icons)
-        (and (fboundp 'all-the-icons-octicon)
-             (all-the-icons-octicon "chevron-right")))
-       (t nil))
-    (error nil)))
-
-(defun treesit-context-headerline--get-icon (node-type backend)
-  "Get icon for NODE-TYPE using BACKEND.
-Returns the icon string or fallback icon if no suitable icon is found.
-Uses only verified icon names to prevent errors."
-  (when (treesit-context-headerline--backend-available-p backend)
-    (let ((icon-map (cond
-                     ((eq backend 'nerd-icons)
-                      ;; Using verified nerd-icons codicon names that exist
-                      '(("function" . ("codicon" . "nf-cod-symbol_function"))
-                        ("function_definition" . ("codicon" . "nf-cod-symbol_function"))
-                        ("function_declaration" . ("codicon" . "nf-cod-symbol_function"))
-                        ("method" . ("codicon" . "nf-cod-symbol_function"))
-                        ("method_definition" . ("codicon" . "nf-cod-symbol_function"))
-                        ("method_declaration" . ("codicon" . "nf-cod-symbol_function"))
-                        ("class" . ("codicon" . "nf-cod-symbol_class"))
-                        ("class_declaration" . ("codicon" . "nf-cod-symbol_class"))
-                        ("constructor" . ("codicon" . "nf-cod-symbol_constant"))
-                        ("struct" . ("codicon" . "nf-cod-symbol_structure"))
-                        ("struct_declaration" . ("codicon" . "nf-cod-symbol_structure"))
-                        ("interface" . ("codicon" . "nf-cod-symbol_interface"))
-                        ("interface_declaration" . ("codicon" . "nf-cod-symbol_interface"))
-                        ("namespace" . ("codicon" . "nf-cod-symbol_namespace"))
-                        ("namespace_declaration" . ("codicon" . "nf-cod-symbol_namespace"))
-                        ("module" . ("codicon" . "nf-cod-file_submodule"))
-                        ("module_declaration" . ("codicon" . "nf-cod-file_submodule"))
-                        ("enum" . ("codicon" . "nf-cod-symbol_enum"))
-                        ("enum_declaration" . ("codicon" . "nf-cod-symbol_enum"))
-                        ("property" . ("codicon" . "nf-cod-symbol_property"))
-                        ("property_declaration" . ("codicon" . "nf-cod-symbol_property"))
-                        ("variable" . ("codicon" . "nf-cod-symbol_variable"))
-                        ("variable_declaration" . ("codicon" . "nf-cod-symbol_variable"))
-                        ("if" . ("codicon" . "nf-cod-question"))
-                        ("if_statement" . ("codicon" . "nf-cod-question"))
-                        ("for" . ("codicon" . "nf-cod-sync"))
-                        ("for_statement" . ("codicon" . "nf-cod-sync"))
-                        ("foreach" . ("codicon" . "nf-cod-sync"))
-                        ("foreach_statement" . ("codicon" . "nf-cod-sync"))
-                        ("while" . ("codicon" . "nf-cod-sync"))
-                        ("while_statement" . ("codicon" . "nf-cod-sync"))
-                        ("switch" . ("codicon" . "nf-cod-list_tree"))
-                        ("switch_statement" . ("codicon" . "nf-cod-list_tree"))
-                        ("try" . ("codicon" . "nf-cod-shield"))
-                        ("try_statement" . ("codicon" . "nf-cod-shield"))
-                        ("catch" . ("codicon" . "nf-cod-debug_alt"))
-                        ("catch_clause" . ("codicon" . "nf-cod-debug_alt"))
-                        ("default" . ("codicon" . "nf-cod-circle_filled"))))
-                     ((eq backend 'all-the-icons)
-                      ;; Using verified all-the-icons octicon names that exist
-                      '(("function" . ("octicon" . "zap"))
-                        ("function_definition" . ("octicon" . "zap"))
-                        ("function_declaration" . ("octicon" . "zap"))
-                        ("method" . ("octicon" . "zap"))
-                        ("method_definition" . ("octicon" . "zap"))
-                        ("method_declaration" . ("octicon" . "zap"))
-                        ("class" . ("octicon" . "package"))
-                        ("class_declaration" . ("octicon" . "package"))
-                        ("struct" . ("octicon" . "database"))
-                        ("struct_declaration" . ("octicon" . "database"))
-                        ("interface" . ("octicon" . "plug"))
-                        ("interface_declaration" . ("octicon" . "plug"))
-                        ("namespace" . ("octicon" . "file-directory"))
-                        ("namespace_declaration" . ("octicon" . "file-directory"))
-                        ("module" . ("octicon" . "file-submodule"))
-                        ("module_declaration" . ("octicon" . "file-submodule"))
-                        ("enum" . ("octicon" . "list-unordered"))
-                        ("enum_declaration" . ("octicon" . "list-unordered"))
-                        ("property" . ("octicon" . "gear"))
-                        ("property_declaration" . ("octicon" . "gear"))
-                        ("variable" . ("octicon" . "primitive-dot"))
-                        ("variable_declaration" . ("octicon" . "primitive-dot"))
-                        ("if" . ("octicon" . "nf-cod-question"))
-                        ("if_statement" . ("octicon" . "question"))
-                        ("for" . ("octicon" . "nf-cod-sync"))
-                        ("for_statement" . ("octicon" . "nf-cod-sync"))
-                        ("foreach" . ("octicon" . "sync"))
-                        ("foreach_statement" . ("octicon" . "sync"))
-                        ("while" . ("octicon" . "sync"))
-                        ("while_statement" . ("octicon" . "sync"))
-                        ("switch" . ("octicon" . "list-ordered"))
-                        ("switch_statement" . ("octicon" . "list-ordered"))
-                        ("try" . ("octicon" . "nf-cod-shield"))
-                        ("try_statement" . ("octicon" . "shield"))
-                        ("catch" . ("octicon" . "alert"))
-                        ("catch_clause" . ("octicon" . "alert"))
-                        ("default" . ("octicon" . "dot-fill"))))
-                     (t nil))))
-      ;; Try to get icon for specific node type
-      (let ((icon nil))
-        (when-let* ((icon-spec (cdr (assoc node-type icon-map))))
-          (let ((family (car icon-spec))
-                (name (cdr icon-spec)))
-            (setq icon (treesit-context-headerline--safe-get-icon-string backend family name))))
-        ;; If no icon found for specific type, try fallback
-        (or icon (treesit-context-headerline--get-fallback-icon backend))))))
+(defun treesit-context-headerline--render-separator ()
+  "Return the separator string or icon for the headerline, padded with spaces."
+  (let ((sep treesit-context-headerline-separator))
+    (concat
+     " "
+     (cond
+      ((stringp sep) sep)
+      ((and (consp sep)
+            (stringp (car sep))
+            (symbolp (cdr sep)))
+       (pcase (cdr sep)
+         ('nerd-icons
+          (when (require 'nerd-icons nil t)
+            (if (fboundp 'nerd-icons-codicon)
+                (nerd-icons-codicon (car sep))
+              (nerd-icons-icon-for-name (car sep)))))
+         ('all-the-icons
+          (when (require 'all-the-icons nil t)
+            (if (fboundp 'all-the-icons-octicon)
+                (all-the-icons-octicon (car sep))
+              (all-the-icons-icon-for-name (car sep)))))
+         (_ (car sep))))
+      (t (format "%s" sep)))
+     " ")))
 
 (defvar treesit-context-headerline--backend-warning-shown nil
   "Whether a warning about missing backend has been shown in this session.")
+
+(defun treesit-context-headerline--backend-available-p (backend)
+  "Return non-nil if icon BACKEND is available."
+  (pcase backend
+    ('nerd-icons (require 'nerd-icons nil t))
+    ('all-the-icons (require 'all-the-icons nil t))
+    (_ nil)))
 
 (defun treesit-context-headerline--maybe-warn-missing-backend ()
   "Show a warning if icons are enabled but the selected backend is not available."
@@ -232,6 +114,45 @@ Uses only verified icon names to prevent errors."
                      (format "Icon backend '%s' is not available. Install the package or disable icons."
                              treesit-context-headerline-icon-backend)
                      :warning)))
+
+(defun treesit-context-headerline--get-icon (type backend)
+  "Return the icon string for node TYPE from BACKEND, or nil if unavailable."
+  (pcase backend
+    ('nerd-icons
+     (when (require 'nerd-icons nil t)
+       (pcase type
+         ((or "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (nerd-icons-codicon "nf-cod-symbol_method"))
+         ((or "class" "class_definition" "class_declaration") (nerd-icons-codicon "nf-cod-symbol_class"))
+         ((or "struct" "struct_definition") (nerd-icons-codicon "nf-cod-symbol_structure"))
+         ((or "interface_definition" "interface_declaration") (nerd-icons-codicon "nf-cod-symbol_interface"))
+         ((or "namespace_definition" "module_definition") (nerd-icons-codicon "nf-cod-symbol_namespace"))
+         ((or "property" "property_declaration" "property_definition") (nerd-icons-codicon "nf-cod-symbol_property"))
+         ((or "variable" "variable_declaration") (nerd-icons-codicon "nf-cod-symbol_variable"))
+         ((or "if_statement" "if") (nerd-icons-codicon "nf-cod-question"))
+         ((or "for_statement" "foreach_statement" "while_statement")
+          (nerd-icons-codicon "nf-cod-sync"))
+         ((or "switch" "switch_section" "switch_statement") (nerd-icons-codicon "nf-cod-list_tree"))
+         ((or "try" "try_statement") (nerd-icons-codicon "nf-cod-shield"))
+         ((or "catch" "catch_clause") (nerd-icons-codicon "nf-cod-bug"))
+         (_ nil))))
+    ('all-the-icons
+     (when (require 'all-the-icons nil t)
+       (pcase type
+         ((or "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (all-the-icons-octicon "zap"))
+         ((or "class" "class_definition" "class_declaration") (all-the-icons-octicon "package"))
+         ((or "struct" "struct_definition") (all-the-icons-octicon "database"))
+         ((or "interface_definition" "interface_declaration") (all-the-icons-octicon "plug"))
+         ((or "namespace_definition" "module_definition") (all-the-icons-octicon "repo"))
+         ((or "property" "property_declaration" "property_definition") (all-the-icons-octicon "settings"))
+         ((or "variable" "variable_declaration") (all-the-icons-octicon "tag"))
+         ((or "if_statement" "if") (all-the-icons-octicon "question"))
+         ((or "foreach_statement" "for_statement" "while_statement" )
+          (all-the-icons-octicon "sync"))
+         ((or "switch" "switch_section" "switch_statement") (all-the-icons-octicon "ordered"))
+         ((or "try" "try_statement") (all-the-icons-octicon "alert"))
+         ((or "catch" "catch_clause") (all-the-icons-octicon "bug"))
+         (_ nil))))
+    (_ nil)))
 
 (defun treesit-context-headerline--node-label (node)
   "Return a label for NODE for the headerline."
@@ -255,15 +176,25 @@ Uses only verified icon names to prevent errors."
                 (replace-regexp-in-string
                  "_statement\\|_clause\\|_section\\|_label\\|_declaration\\|_definition" "" type)))))
      (t nil))
-    
     ;; Add icon if enabled and available
     (when (and label treesit-context-headerline-icons-enabled)
       (setq icon (treesit-context-headerline--get-icon type treesit-context-headerline-icon-backend)))
-    
     ;; Combine icon and label
     (if icon
-        (concat label " " icon)
+        (concat (if (eq treesit-context-headerline-icon-backend 'all-the-icons)
+                    (concat icon " " label)
+                  (concat label " " icon)))
       label)))
+
+(defun treesit-context-headerline--get-nodes-at-point ()
+  "Return a list of relevant ancestor nodes at point for context."
+  ;; Dummy implementation for illustration; replace with your logic for traversing tree-sitter nodes.
+  (let ((root (treesit-buffer-root-node)))
+    (when root
+      (let ((node (treesit-node-at (point))))
+        (cl-loop for n = node then (treesit-node-parent n)
+                 while n
+                 collect n)))))
 
 (defun treesit-context-headerline--format ()
   "Return the context path as a string for the headerline, including all matching block ancestors."
@@ -275,10 +206,11 @@ Uses only verified icon names to prevent errors."
                             (member type treesit-context-headerline-conditional-node-types))
                    collect (treesit-context-headerline--node-label node)))
          ;; Remove nils (unlabeled nodes)
-         (labels (delq nil labels)))
+         (labels (delq nil labels))
+         (separator (treesit-context-headerline--render-separator)))
     (if (and labels (> (length labels) 0))
         ;; Reverse labels so left is parent, right is child
-        (mapconcat #'identity (reverse labels) treesit-context-headerline-separator)
+        (mapconcat #'identity (reverse labels) separator)
       "")))
 
 (defun treesit-context-headerline--update ()
@@ -286,20 +218,22 @@ Uses only verified icon names to prevent errors."
   (treesit-context-headerline--maybe-warn-missing-backend)
   (let ((ctx (treesit-context-headerline--format)))
     (setq header-line-format
-          (when (and ctx (not (string-empty-p ctx)))
-            `((:eval ,ctx))))))
+          (if (and ctx (not (string-empty-p ctx)))
+              ctx
+            nil))))
 
 ;;;###autoload
 (define-minor-mode treesit-context-headerline-mode
-  "Show current code context path in the header line using Tree-sitter.
-Works for any language with a Tree-sitter grammar."
-  :lighter " CtxHdr"
+  "Minor mode to show Tree-sitter code context in the header line."
+  :global nil
+  :group 'treesit-context-headerline
   (if treesit-context-headerline-mode
       (progn
         (add-hook 'post-command-hook #'treesit-context-headerline--update nil t)
         (treesit-context-headerline--update))
     (remove-hook 'post-command-hook #'treesit-context-headerline--update t)
-    (kill-local-variable 'header-line-format)))
+    (setq header-line-format nil)))
 
 (provide 'treesit-context-headerline)
+
 ;;; treesit-context-headerline.el ends here

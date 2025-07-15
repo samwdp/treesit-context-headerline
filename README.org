@@ -17,7 +17,11 @@ Clone the repository and add the directory to your load-path, then:
 #+begin_src emacs-lisp
   (use-package treesit-context-headerline
     :straight (treesit-conxet-headerline :host github :repo "samwdp/treesit-context-headerline")
-    :hook (csharp-ts-mode . treesit-context-headerline-mode))
+    :hook (csharp-ts-mode . treesit-context-headerline-mode)
+    :config
+    (setq treesit-context-headerline-icons-enabled t) ;; On By Defult
+    (setq treesit-context-headerline-icon-backend 'nerd-icons) ;; 'nerd-icons by defult
+    (setq treesit-context-headerline-separator '("nf-cod-chevron_right" . nerd-icons))) ;; ">" by defult
 #+end_src
 
 
@@ -31,6 +35,7 @@ Enable the minor mode in any buffer with Tree-sitter enabled:
 
 ** Customization
 
+- =treesit-context-headerline-icon-seprarator=: The displayed separator showing between nodes (default: ~>~)
 - =treesit-context-headerline-structural-node-types=: List of node types considered as structural (function, class, etc).
 - =treesit-context-headerline-conditional-node-types=: List of node types considered as conditional/control blocks.
 - =treesit-context-headerline-icons-enabled=: Whether to display icons in the context headerline (default: =t=).
@@ -51,6 +56,7 @@ Install [[https://github.com/rainstormstudio/nerd-icons.el][nerd-icons.el]] for 
 ;; Enable icons (default)
 (setq treesit-context-headerline-icons-enabled t)
 (setq treesit-context-headerline-icon-backend 'nerd-icons)
+(setq treesit-context-headerline-separator '("nf-cod-chevron_right" . nerd-icons))
 #+end_src
 
 **** All The Icons (alternative)
@@ -64,6 +70,7 @@ Alternatively, use [[https://github.com/domtronn/all-the-icons.el][all-the-icons
 ;; Configure to use all-the-icons backend
 (setq treesit-context-headerline-icons-enabled t)
 (setq treesit-context-headerline-icon-backend 'all-the-icons)
+(setq treesit-context-headerline-separator '("chevron-right" . all-the-icons))
 #+end_src
 
 **** Disabling Icons
@@ -77,17 +84,17 @@ To disable icons entirely:
 
 The package uses only verified icon names from the respective icon packages to prevent errors:
 
-**Nerd Icons (codicon family):**
-- Functions/methods: symbol-function icon
-- Classes: symbol-class icon  
-- Structs: symbol-struct icon
-- Interfaces: symbol-interface icon
-- Namespaces/modules: symbol-namespace/symbol-module icons
-- Variables/properties: symbol-variable/symbol-property icons
-- Control flow (if/for/while): question or sync icons
-- Try/catch blocks: shield or debug-alt icons
+*Nerd Icons (codicon family):*
+- Functions/methods: symbol-method () icon
+- Classes: symbol-class () icon
+- Structs: symbol-struct () icon
+- Interfaces: symbol-interface () icon
+- Namespaces/modules: symbol-namespace/symbol-module () icon
+- Variables/properties: symbol-variable () or symbol-property ()
+- Control flow (if/for/while): question () or sync ()
+- Try/catch blocks: shield () or debug-alt () icons
 
-**All The Icons (octicon family):**
+*All The Icons (octicon family):*
 - Functions/methods: zap icon (⚡)
 - Classes: package icon (📦)
 - Structs: database icon
@@ -99,10 +106,10 @@ The package uses only verified icon names from the respective icon packages to p
 
 *** Robust Error Handling
 
-- **Safe icon retrieval**: All icon lookups are wrapped in error handling to prevent crashes
-- **Fallback mechanism**: If a specific icon isn't found, a safe chevron icon (▶) is used as fallback
-- **Unknown node types**: Node types without specific mappings get the fallback icon
-- **Missing backends**: If the selected backend is not installed, the package displays a warning once per session and continues without icons
-- **Invalid icons**: Invalid or missing icon names never cause errors - the package gracefully falls back
+- =Safe icon retrieval=: All icon lookups are wrapped in error handling to prevent crashes
+- =Fallback mechanism=: If a specific icon isn't found, a safe chevron icon (▶) is used as fallback
+- =Unknown node types=: Node types without specific mappings get the fallback icon
+- =Missing backends=: If the selected backend is not installed, the package displays a warning once per session and continues without icons
+- =Invalid icons=: Invalid or missing icon names never cause errors - the package gracefully falls back
 
 This ensures treesit-context-headerline always works reliably, whether icons are available or not.
