@@ -56,7 +56,7 @@ If the selected backend is not available, no icons will be displayed."
     "enum_declaration" "function" "function_definition" "method"
     "method_declaration" "method_definition" "property" "property_declaration"
     "event" "event_declaration" "indexer" "indexer_declaration" "delegate"
-    "delegate_declaration" "module" "module_declaration" "program" "subroutine"
+    "delegate_declaration" "module" "module_declaration" "subroutine"
     "subroutine_declaration" "subroutine_definition")
   "Structural node types to show in the headerline. This list is language-agnostic."
   :type '(repeat string)
