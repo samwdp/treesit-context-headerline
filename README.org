@@ -38,7 +38,7 @@ Enable the minor mode in any buffer with Tree-sitter enabled:
 
 *** Icon Support
 
-treesit-context-headerline supports displaying icons next to context nodes. Two icon backends are supported:
+treesit-context-headerline supports displaying icons next to context nodes. Two icon backends are supported with robust error handling and safe fallbacks:
 
 **** Nerd Icons (default)
 Install [[https://github.com/rainstormstudio/nerd-icons.el][nerd-icons.el]] for icon support:
@@ -73,14 +73,36 @@ To disable icons entirely:
 (setq treesit-context-headerline-icons-enabled nil)
 #+end_src
 
-*** Icon Mappings
+*** Icon Mappings and Safety
 
-Common node types have appropriate icon mappings:
-- Functions/methods: ⚡ (method symbol)
-- Classes: 📦 (package symbol)  
-- Interfaces: 🔌 (plug symbol)
-- Namespaces/modules: 📁 (folder symbol)
-- Control flow (if/for/while): ❓ (question) or 🔄 (sync)
-- Try/catch blocks: 🛡️ (shield) or ⚠️ (alert)
+The package uses only verified icon names from the respective icon packages to prevent errors:
 
-If the selected backend is not installed, the package will display a warning and fall back to text-only display.
+**Nerd Icons (codicon family):**
+- Functions/methods: symbol-function icon
+- Classes: symbol-class icon  
+- Structs: symbol-struct icon
+- Interfaces: symbol-interface icon
+- Namespaces/modules: symbol-namespace/symbol-module icons
+- Variables/properties: symbol-variable/symbol-property icons
+- Control flow (if/for/while): question or sync icons
+- Try/catch blocks: shield or debug-alt icons
+
+**All The Icons (octicon family):**
+- Functions/methods: zap icon (⚡)
+- Classes: package icon (📦)
+- Structs: database icon
+- Interfaces: plug icon (🔌)
+- Namespaces/modules: file-directory/file-submodule icons (📁)
+- Variables/properties: primitive-dot/gear icons
+- Control flow (if/for/while): question or sync icons (❓/🔄)
+- Try/catch blocks: shield or alert icons (🛡️/⚠️)
+
+*** Robust Error Handling
+
+- **Safe icon retrieval**: All icon lookups are wrapped in error handling to prevent crashes
+- **Fallback mechanism**: If a specific icon isn't found, a safe chevron icon (▶) is used as fallback
+- **Unknown node types**: Node types without specific mappings get the fallback icon
+- **Missing backends**: If the selected backend is not installed, the package displays a warning once per session and continues without icons
+- **Invalid icons**: Invalid or missing icon names never cause errors - the package gracefully falls back
+
+This ensures treesit-context-headerline always works reliably, whether icons are available or not.
