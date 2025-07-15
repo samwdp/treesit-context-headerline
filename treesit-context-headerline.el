@@ -116,7 +116,7 @@ Returns a basic icon that should work or nil if backend unavailable."
       (cond
        ((eq backend 'nerd-icons)
         (and (fboundp 'nerd-icons-codicon)
-             (nerd-icons-codicon "chevron-right")))
+             (nerd-icons-codicon "nf-cod-chevron_right")))
        ((eq backend 'all-the-icons)
         (and (fboundp 'all-the-icons-octicon)
              (all-the-icons-octicon "chevron-right")))
@@ -139,6 +139,7 @@ Uses only verified icon names to prevent errors."
                         ("method_declaration" . ("codicon" . "nf-cod-symbol_function"))
                         ("class" . ("codicon" . "nf-cod-symbol_class"))
                         ("class_declaration" . ("codicon" . "nf-cod-symbol_class"))
+                        ("constructor" . ("codicon" . "nf-cod-symbol_constant"))
                         ("struct" . ("codicon" . "nf-cod-symbol_structure"))
                         ("struct_declaration" . ("codicon" . "nf-cod-symbol_structure"))
                         ("interface" . ("codicon" . "nf-cod-symbol_interface"))
@@ -261,7 +262,7 @@ Uses only verified icon names to prevent errors."
     
     ;; Combine icon and label
     (if icon
-        (concat icon " " label)
+        (concat label " " icon)
       label)))
 
 (defun treesit-context-headerline--format ()
