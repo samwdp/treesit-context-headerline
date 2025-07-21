@@ -1,10 +1,26 @@
 ;;; treesit-context-headerline.el --- Show code context in header line using Tree-sitter -*- lexical-binding: t; -*-
 
-;; Author: samwdp
+;; Author: Sam Precious <samwdp@gmail.com>
+;; URL: https://github.com/samwdp/treesit-context-headerline
+;; Keywords: convenience, languages, tools
 ;; Version: 0.2
 ;; Package-Requires: ((emacs "29.1") (nerd-icons "0.1") (all-the-icons "5.0"))
-;; Keywords: convenience, languages, tools
-;; URL: https://github.com/samwdp/treesit-context-headerline
+
+;; This file is not part of GNU Emacs
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 ;;; Commentary:
 
@@ -24,12 +40,13 @@
 (defcustom treesit-context-headerline-structural-node-types
   '("namespace" "namespace_declaration" "class" "class_declaration" "struct"
     "struct_declaration" "interface" "interface_declaration" "enum"
-    "enum_declaration" "function" "function_definition" "method"
+    "enum_declaration" "function" "function_definition" "method" "procedure"
+    "procedure_declaration"
     "method_declaration" "method_definition" "property" "property_declaration"
     "event" "event_declaration" "indexer" "indexer_declaration" "delegate"
     "delegate_declaration" "module" "module_declaration" "subroutine"
     "subroutine_declaration" "subroutine_definition")
-  "Structural node types to show in the headerline. This list is language-agnostic."
+  "Structural node types to show in the headerline.  This list is language-agnostic."
   :type '(repeat string)
   :group 'treesit-context-headerline)
 
@@ -41,7 +58,7 @@
     "using" "using_statement" "lock" "lock_statement" "checked" "checked_statement"
     "unchecked" "unchecked_statement" "repeat" "repeat_statement" "until" "until_statement"
     "with" "with_statement" "guard" "guard_clause" "match" "match_statement")
-  "Conditional/control node types to show in the headerline. This list is language-agnostic."
+  "Conditional/control node types to show in the headerline.  This list is language-agnostic."
   :type '(repeat string)
   :group 'treesit-context-headerline)
 
@@ -51,7 +68,7 @@
   :group 'treesit-context-headerline)
 
 (defcustom treesit-context-headerline-icon-backend 'nerd-icons
-  "Which icon backend to use. Either 'nerd-icons or 'all-the-icons."
+  "Which icon backend to use.  Either 'nerd-icons or 'all-the-icons."
   :type '(choice (const :tag "Nerd Icons" nerd-icons)
                  (const :tag "All The Icons" all-the-icons))
   :group 'treesit-context-headerline)
@@ -107,7 +124,7 @@ If a cons cell, the corresponding icon backend is used to render the icon."
   "Show a warning if icons are enabled but the selected backend is not available."
   (when (and treesit-context-headerline-icons-enabled
              (not treesit-context-headerline--backend-warning-shown)
-             (not (treesit-context-headerline--backend-available-p 
+             (not (treesit-context-headerline--backend-available-p
                    treesit-context-headerline-icon-backend)))
     (setq treesit-context-headerline--backend-warning-shown t)
     (display-warning 'treesit-context-headerline
@@ -121,7 +138,7 @@ If a cons cell, the corresponding icon backend is used to render the icon."
     ('nerd-icons
      (when (require 'nerd-icons nil t)
        (pcase type
-         ((or "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (nerd-icons-codicon "nf-cod-symbol_method"))
+         ((or "procedure_declaration" "procedure" "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (nerd-icons-mdicon "nf-md-function"))
          ((or "class" "class_definition" "class_declaration") (nerd-icons-codicon "nf-cod-symbol_class"))
          ((or "struct" "struct_definition") (nerd-icons-codicon "nf-cod-symbol_structure"))
          ((or "interface_definition" "interface_declaration") (nerd-icons-codicon "nf-cod-symbol_interface"))
@@ -138,7 +155,7 @@ If a cons cell, the corresponding icon backend is used to render the icon."
     ('all-the-icons
      (when (require 'all-the-icons nil t)
        (pcase type
-         ((or "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (all-the-icons-octicon "zap"))
+         ((or "procedure" "procedure_declaration" "method" "function_definition" "function_declaration" "method_definition" "method_declaration") (all-the-icons-octicon "zap"))
          ((or "class" "class_definition" "class_declaration") (all-the-icons-octicon "package"))
          ((or "struct" "struct_definition") (all-the-icons-octicon "database"))
          ((or "interface_definition" "interface_declaration") (all-the-icons-octicon "plug"))
@@ -155,15 +172,15 @@ If a cons cell, the corresponding icon backend is used to render the icon."
     (_ nil)))
 
 (defun treesit-context-headerline--node-label (node)
-  "Return a label for NODE for the headerline."
+  "Return label for NODE in the headerline.
+For HTML, show the actual tag name for nodes with type 'tag_name'."
   (let* ((type (treesit-node-type node))
-         (label nil)
-         (icon nil))
+         label
+         icon)
     (cond
-     ;; For conditionals, prettify type
-     ((member type treesit-context-headerline-conditional-node-types)
-      (setq label (replace-regexp-in-string
-                   "_statement\\|_clause\\|_section\\|_label\\|_declaration\\|_definition" "" type)))
+     ;; NEW: For HTML tag_name nodes, show their actual text (the tag name)
+     ((equal type "tag_name")
+      (setq label (string-trim (treesit-node-text node t))))
      ;; For structural, use name/identifier if possible
      ((member type treesit-context-headerline-structural-node-types)
       (let ((name-node (or (treesit-node-child-by-field-name node "name")
