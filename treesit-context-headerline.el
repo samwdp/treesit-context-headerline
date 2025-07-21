@@ -4,7 +4,7 @@
 ;; URL: https://github.com/samwdp/treesit-context-headerline
 ;; Keywords: convenience, languages, tools
 ;; Version: 0.2
-;; Package-Requires: ((emacs "29.1") (nerd-icons "0.1.0") (all-the-icons "2.2.0"))
+;; Package-Requires: ((emacs "29.0") (nerd-icons "0.1.0") (all-the-icons "2.2.0"))
 
 ;; This file is not part of GNU Emacs
 
